@@ -10,7 +10,6 @@ Este repositorio contiene el progreso, actividades y proyectos realizados a lo l
 ## Índice de Actividades
 
 * [Clase 1](#clase-1)
-* [Proyecto Transversal](#proyecto-transversal)
 
 ---
 
@@ -18,21 +17,10 @@ Este repositorio contiene el progreso, actividades y proyectos realizados a lo l
 
 ### Clase 1
 * **Estado:** ✅ Entregada
-* **Descripción:** [Breve descripción de lo que hicieron en la clase 1]
-* [Enlace a la actividad / carpeta](URL_AQUI)
-
+* 
 ---
 
 ## 🚀 Proyecto Transversal
 [Enlace al proyecto transversal](URL_AQUI)
 
 ---
-
-## 🛠 Instrucciones de Ejecución
-
-Para levantar el servidor desde cero en tu entorno local, sigue estos pasos:
-
-1. **Clonar el repositorio:**
-   ```bash
-   git clone [URL_DEL_REPOSITORIO]
-   cd [NOMBRE_DE_LA_CARPETA]
