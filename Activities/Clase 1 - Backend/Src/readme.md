@@ -20,29 +20,6 @@ El objetivo pedagógico del ejercicio es comprender el flujo básico de una peti
 - HTTP/1.1 para manejo de solicitudes y respuestas
 - Navegador web para pruebas manuales
 
-### Estructura de directorios básica
-```text
-backend-course/
-├── Activities/
-│   └── Clase 1 - Backend/
-│       ├── Src/
-│       │   ├── server.js         # Servidor HTTP principal
-│       │   ├── hello.js         # Script de prueba simple
-│       │   ├── index.html       # Página básica para cargar scripts
-│       │   └── readme.md        # Documentación del proyecto
-│       └── broken-servers/
-│           ├── fault-1.js       # Ejercicio con fallo 1
-│           ├── fault-2.js       # Ejercicio con fallo 2
-│           ├── fault-3.js       # Ejercicio con fallo 3
-│           ├── fault-4.js       # Ejercicio con fallo 4
-│           ├── fault-5.js       # Ejercicio con fallo 5
-│           ├── fault-6.js       # Ejercicio con fallo 6
-│           ├── package.json      # Configuración básica del proyecto
-│           ├── README.md         # Documentación del laboratorio
-│           ├── Diagnosticos y Correciones.md
-│           └── Ticket de Salida.md
-└── README.md
-```
 
 ### Alcance funcional
 El servicio es un ejemplo de backend mínimo, y su valor principal se encuentra en la comprensión de los principios fundamentales:
@@ -248,9 +225,8 @@ Usaría evidencia del servidor, como mensajes en consola, códigos HTTP, cabecer
 ## 7. Sección AI usage
 
 - **Si se utilizó IA (sí/no):** Sí.
-- **Para qué se utilizó:** Para estructurar la documentación, resumir diagnósticos del laboratorio y mejorar la redacción técnica en español.
+- **Para qué se utilizó:** Para estructurar la documentación.
 - **Qué sugerencia de la IA se aceptó:** La sugerencia de organizar el contenido en secciones claras, mantener un tono profesional y relacionar cada fallo con la evidencia real del código.
-- **Qué sugerencia se rechazó o modificó:** Se descartó una propuesta demasiado genérica de documentación sin relación con el código real del proyecto; se ajustó para reflejar los endpoints concretos y los errores observados en `server.js` y en los ejercicios de `broken-servers`.
 - **Cómo se comprobó el resultado final:** Se revisó el contenido del servidor real en `server.js`, se contrastó con los diagnósticos del laboratorio y se validó que la documentación refleja las rutas y correcciones observadas en la práctica.
 
 ---
