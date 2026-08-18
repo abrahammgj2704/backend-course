@@ -1,0 +1,10 @@
+Reconstruir el viaje
+
+1. El usuario introduce una URL.
+2. El navegador crea una petición.
+3. La petición se dirige a un puerto.
+4. El proceso de Node.js recibe la petición.
+5. El programa inspecciona la URL.
+6. El programa decide qué respuesta producir.
+7. El servidor completa la respuesta
+8. El navegador recibe y presenta el resultado
