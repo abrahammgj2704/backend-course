@@ -17,7 +17,10 @@ Este repositorio contiene el progreso, actividades y proyectos realizados a lo l
 
 ### Clase 1
 * **Estado:** ✅ Entregada
-* 
+
+### Clase 2
+* **Estado:** ✅ Entregada
+
 ---
 
 ## 🚀 Proyecto Transversal
