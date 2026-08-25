@@ -9,17 +9,18 @@
 
 Describe en dos o tres líneas qué representa una **solicitud** (`request`) en este sistema.
 
-_(Completar)_
+Una solicitud representa un aviso de mantenimiento para informar de un problema en una
+instalación. Incluye la descripción, prioridad y estado actual de atención.
 
 ### Forma del recurso
 
 | Campo         | Tipo   | Obligatorio | Quién lo asigna | Notas |
 | ------------- | ------ | ----------- | --------------- | ----- |
-| `id`          |        |             |                 |       |
-| `title`       |        |             |                 |       |
-| `description` |        |             |                 |       |
-| `status`      |        |             |                 |       |
-| `priority`    |        |             |                 |       |
+| `id`          | number | sí          | servidor        | Identificador único. |
+| `title`       | string | sí          | cliente         | No puede faltar ni estar en blanco. |
+| `description` | string | no          | cliente         | Descripción del problema. |
+| `status`      | string | sí          | servidor        | Al crear siempre es `open`. |
+| `priority`    | string | no          | cliente         | Prioridad indicada por el cliente. |
 
 ---
 
@@ -27,16 +28,24 @@ _(Completar)_
 
 | Elemento              | Valor |
 | --------------------- | ----- |
-| Método                |       |
-| Ruta                  |       |
-| Entrada               |       |
-| Respuesta de éxito    |       |
-| Respuestas de error   |       |
+| Método                | `GET` |
+| Ruta                  | `/requests` |
+| Entrada               | Sin body ni parámetros obligatorios. |
+| Respuesta de éxito    | `200` con un arreglo JSON. |
+| Respuestas de error   | No previstas para esta ruta. |
 
 **Ejemplo de respuesta**
 
 ```json
-
+[
+	{
+		"id": 1,
+		"title": "Projector does not turn on",
+		"description": "The projector in room 204 shows no image during class.",
+		"status": "open",
+		"priority": "high"
+	}
+]
 ```
 
 ---
@@ -45,22 +54,30 @@ _(Completar)_
 
 | Elemento              | Valor |
 | --------------------- | ----- |
-| Método                |       |
-| Ruta                  |       |
-| Entrada               |       |
-| Respuesta de éxito    |       |
-| Respuestas de error   |       |
+| Método                | `GET` |
+| Ruta                  | `/requests/:id` |
+| Entrada               | `id` numérico en la ruta. |
+| Respuesta de éxito    | `200` con el objeto solicitado. |
+| Respuestas de error   | `404` con `{ "error": "Request not found" }`. |
 
 **Ejemplo de respuesta (éxito)**
 
 ```json
-
+{
+	"id": 1,
+	"title": "Projector does not turn on",
+	"description": "The projector in room 204 shows no image during class.",
+	"status": "open",
+	"priority": "high"
+}
 ```
 
 **Ejemplo de respuesta (error)**
 
 ```json
-
+{
+	"error": "Request not found"
+}
 ```
 
 ---
@@ -69,28 +86,40 @@ _(Completar)_
 
 | Elemento              | Valor |
 | --------------------- | ----- |
-| Método                |       |
-| Ruta                  |       |
-| Entrada               |       |
-| Respuesta de éxito    |       |
-| Respuestas de error   |       |
+| Método                | `POST` |
+| Ruta                  | `/requests` |
+| Entrada               | Body JSON con `title` obligatorio; `description` y `priority` opcionales. |
+| Respuesta de éxito    | `201` con la solicitud creada. |
+| Respuestas de error   | `400` si `title` falta, no es texto o está en blanco. |
 
 **Ejemplo de body de la petición**
 
 ```json
-
+{
+	"title": "Leaking faucet",
+	"description": "The faucet in the third floor bathroom leaks.",
+	"priority": "medium"
+}
 ```
 
 **Ejemplo de respuesta (éxito)**
 
 ```json
-
+{
+	"id": 4,
+	"title": "Leaking faucet",
+	"description": "The faucet in the third floor bathroom leaks.",
+	"status": "open",
+	"priority": "medium"
+}
 ```
 
 **Ejemplo de respuesta (error de validación)**
 
 ```json
-
+{
+	"error": "Title is required"
+}
 ```
 
 ---
@@ -99,14 +128,16 @@ _(Completar)_
 
 Responde en una línea cada una:
 
-1. ¿Qué `Content-Type` devuelven todas las respuestas?
-2. ¿Qué estado corresponde a una ruta que no existe en esta API?
-3. ¿Qué forma tiene siempre un cuerpo de error?
-4. ¿Qué campos ignora el servidor si el cliente los envía en el body?
+1. Todas las respuestas de la API devuelven `Content-Type: application/json`.
+2. Una ruta que no existe devuelve `404`.
+3. El cuerpo de error siempre es un objeto JSON con la propiedad `error`.
+4. El servidor ignora `id` y `status` enviados en el body; los asigna internamente.
 
 ## Decisiones que tomaste y por qué
 
 Anota aquí cualquier decisión que no sea obvia leyendo las tablas (por ejemplo: por qué
 elegiste un estado y no otro, o qué hiciste con los campos opcionales ausentes).
 
-_(Completar)_
+El servidor asigna siempre el `id` para evitar que el cliente elija identificadores repetidos.
+También fuerza `status` a `open` al crear. Los campos opcionales ausentes se conservan como
+`undefined`, sin inventar valores que el contrato no exige.

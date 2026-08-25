@@ -1,7 +1,7 @@
 # Request API Full — plantilla de inicio
 
-Este proyecto es un **andamiaje**, no una solución. El servidor arranca y responde, pero los
-tres endpoints devuelven `501 Not Implemented`: la lógica es tu trabajo.
+Este proyecto es una API Express funcional que administra solicitudes de mantenimiento.
+La aplicación está organizada por responsabilidades: arranque, configuración, rutas y datos.
 
 La API administra **solicitudes de mantenimiento**, el mismo recurso del proyecto Lite. La
 diferencia no está en lo que hace, sino en cómo está organizado.
@@ -58,24 +58,23 @@ request-api-full-template/
 | `src/server.js`                | Arranca el proceso y escucha en el puerto 3000. No sabe nada de rutas.            | Completo        |
 | `src/app.js`                   | Crea la aplicación de Express, activa `express.json()` y monta el router.         | Completo        |
 | `src/data/requests.js`         | Guarda las solicitudes en memoria y genera identificadores con `generateId()`.    | Completo        |
-| `src/routes/requests.routes.js`| Declara los tres endpoints y decide qué responde cada uno.                        | **Tu trabajo**  |
-| `docs/http-contract.md`        | El contrato HTTP de la API, escrito por ti.                                       | **Tu trabajo**  |
+| `src/routes/requests.routes.js`| Declara los tres endpoints y decide qué responde cada uno.                        | Completo        |
+| `docs/http-contract.md`        | El contrato HTTP de la API.                                                       | Completo        |
 
 La separación importa por una razón concreta: `server.js` puede cambiar de puerto sin tocar
 las rutas, y `app.js` puede montarse en una prueba automática sin abrir ningún puerto.
 
-## Qué debes completar
+## Funcionalidad incluida
 
-1. **`docs/http-contract.md` primero.** Define método, ruta, entrada, respuesta de éxito y
-   respuestas de error de los tres endpoints. Escribe el contrato antes que el código.
-2. **`src/routes/requests.routes.js`.** Reemplaza cada `501` por la implementación real.
+1. **`docs/http-contract.md`.** Define método, ruta, entrada, respuesta de éxito y respuestas
+   de error de los tres endpoints.
+2. **`src/routes/requests.routes.js`.** Implementa los tres endpoints:
    Cada manejador tiene un `// TODO:` que describe el comportamiento y los estados esperados:
    * `GET /requests` → `200` con el arreglo de solicitudes.
    * `GET /requests/:id` → `200` con la solicitud, o `404` si no existe.
    * `POST /requests` → `201` con la solicitud creada, o `400` si falta el `title`.
-3. **Verificación manual.** Ejecuta los casos de prueba de `casos-de-prueba.md` con `curl` y
-   registra el resultado observado de cada uno.
-4. **Registro de uso de IA.** Completa `ai-usage.md` mientras trabajas, no al final.
+3. **Verificación manual.** Los casos de prueba están documentados en `casos-de-prueba.md`.
+4. **Registro de uso de IA.** El proceso está registrado en `ai-usage.md`.
 
 El router se monta en `/requests` desde `app.js`. Por eso, dentro del router, la ruta `'/'`
 corresponde a `/requests` y `'/:id'` corresponde a `/requests/:id`.
