@@ -1,0 +1,24 @@
+Pega aqui la salida final de: npm run validate:class-06
+(la salida no contiene secretos; no agregues capturas de tu .env)
+
+✔ registering a new account answers 201 with role requester (992.42311ms)
+✔ registering the same email twice answers a generic 409 (408.387529ms)
+✔ sending a role at registration is rejected explicitly (8.042323ms)
+✔ logging in with valid credentials answers a Bearer token (462.266031ms)
+✔ logging in with a wrong password answers a generic 401 (365.941004ms)
+✔ GET /auth/me reports the identity carried by the token (440.029325ms)
+✔ GET /auth/me without a token answers 401 (7.488258ms)
+✔ a requester can create a request and becomes its owner (1092.329875ms)
+✔ the owner can read their own request (852.12496ms)
+✔ a requester cannot access another user request (1169.985475ms)
+✔ the collection requires a Bearer token (7.748528ms)
+✔ a requester cannot change the priority, even of their own request (913.146259ms)
+✔ an agent can move a request through a valid transition (1604.459039ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9506.390052
