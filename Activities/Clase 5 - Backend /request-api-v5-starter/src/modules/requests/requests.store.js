@@ -1,32 +1,6 @@
-// ============================================================================
-// STARTER NOTE — Station 6 evolves this file. It arrives exactly as your
-// class 04 delivery left it. Target changes:
-//
-//   * add created_by to the selected columns (migration 004 already ran);
-//   * findAll: accept filters.createdBy and add `created_by = $n` to the
-//     WHERE — the ownership scope lives in SQL, not in JavaScript;
-//   * insertRequest: receive createdBy and include it in the INSERT
-//     (the service passes the authenticated actor, never the body);
-//   * insertStatusHistory: receive changedBy as a new parameter and write
-//     the changed_by column (migration 005);
-//   * findHistory: also select changed_by.
-// ============================================================================
-
 import { pool } from '../../database/pool.js';
 
-const REQUEST_COLUMNS = `
-  id,
-  title,
-  description,
-  priority,
-  status,
-  created_at,
-  updated_at
-`;
-
 export async function findAll(filters = {}, db = pool) {
-  // Values are parameterized; column names come from this file only —
-  // identifiers are never derived from client input.
   const conditions = [];
   const values = [];
 
@@ -34,75 +8,91 @@ export async function findAll(filters = {}, db = pool) {
     values.push(filters.status);
     conditions.push(`status = $${values.length}`);
   }
+
   if (filters.priority) {
     values.push(filters.priority);
     conditions.push(`priority = $${values.length}`);
   }
 
-  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-  const result = await db.query(
-    `SELECT ${REQUEST_COLUMNS} FROM requests ${where} ORDER BY id`,
-    values
-  );
-  return result.rows;
+  if (filters.createdBy !== undefined) {
+    values.push(filters.createdBy);
+    conditions.push(`created_by = $${values.length}`);
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const query = `
+    SELECT id, title, description, priority, status, created_by, created_at, updated_at
+    FROM requests
+    ${whereClause}
+    ORDER BY id DESC
+  `;
+
+  const { rows } = await db.query(query, values);
+  return rows;
 }
 
 export async function findById(id, db = pool) {
-  const result = await db.query(
-    `SELECT ${REQUEST_COLUMNS} FROM requests WHERE id = $1`,
+  const { rows } = await db.query(
+    `SELECT id, title, description, priority, status, created_by, created_at, updated_at
+     FROM requests
+     WHERE id = $1`,
     [id]
   );
-  return result.rows[0] ?? null;
+  return rows[0] || null;
 }
 
-export async function insertRequest({ title, description, priority }, db = pool) {
-  // The database generates id, status default, and both timestamps.
-  const result = await db.query(
-    `INSERT INTO requests (title, description, priority)
-     VALUES ($1, $2, $3)
-     RETURNING ${REQUEST_COLUMNS}`,
-    [title, description, priority]
+export async function insertRequest({ title, description, priority, createdBy }, db = pool) {
+  const { rows } = await db.query(
+    `INSERT INTO requests (title, description, priority, created_by)
+     VALUES ($1, $2, $3, $4)
+     RETURNING id, title, description, priority, status, created_by, created_at, updated_at`,
+    [title, description, priority, createdBy]
   );
-  return result.rows[0];
+  return rows[0];
 }
 
 export async function updateRequest(id, changes, db = pool) {
-  const assignments = [];
-  const values = [];
-
-  for (const field of ['title', 'description', 'priority', 'status']) {
-    if (changes[field] !== undefined) {
-      values.push(changes[field]);
-      assignments.push(`${field} = $${values.length}`);
-    }
+  const entries = Object.entries(changes);
+  if (entries.length === 0) {
+    return null;
   }
 
+  const values = [];
+  const assignments = entries.map(([field, value]) => {
+    values.push(value);
+    return `${field} = $${values.length}`;
+  });
+
   values.push(id);
-  const result = await db.query(
+
+  const { rows } = await db.query(
     `UPDATE requests
      SET ${assignments.join(', ')}, updated_at = CURRENT_TIMESTAMP
      WHERE id = $${values.length}
-     RETURNING ${REQUEST_COLUMNS}`,
+     RETURNING id, title, description, priority, status, created_by, created_at, updated_at`,
     values
   );
-  return result.rows[0] ?? null;
+
+  return rows[0] || null;
 }
 
-export async function insertStatusHistory(requestId, previousStatus, newStatus, db = pool) {
-  await db.query(
-    `INSERT INTO request_status_history (request_id, previous_status, new_status)
-     VALUES ($1, $2, $3)`,
-    [requestId, previousStatus, newStatus]
+export async function insertStatusHistory(requestId, previousStatus, newStatus, changedBy, db = pool) {
+  const { rows } = await db.query(
+    `INSERT INTO request_status_history (request_id, previous_status, new_status, changed_by)
+     VALUES ($1, $2, $3, $4)
+     RETURNING id, request_id, previous_status, new_status, changed_by, changed_at`,
+    [requestId, previousStatus, newStatus, changedBy]
   );
+  return rows[0];
 }
 
 export async function findHistory(requestId, db = pool) {
-  const result = await db.query(
-    `SELECT previous_status, new_status, changed_at
+  const { rows } = await db.query(
+    `SELECT id, request_id, previous_status, new_status, changed_by, changed_at
      FROM request_status_history
      WHERE request_id = $1
-     ORDER BY id`,
+     ORDER BY changed_at ASC, id ASC`,
     [requestId]
   );
-  return result.rows;
+  return rows;
 }

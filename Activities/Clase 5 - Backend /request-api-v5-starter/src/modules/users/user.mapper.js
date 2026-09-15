@@ -9,6 +9,12 @@
 // mapper never exposes.
 // ============================================================================
 export function mapUserRow(row) {
-  // TODO (station 2)
-  throw new Error('TODO: mapUserRow is not implemented yet.');
+  if (!row) return null;
+  
+  return {
+    id: row.id,
+    email: row.email,
+    role: row.role,
+    createdAt: row.created_at
+  };
 }

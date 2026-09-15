@@ -24,6 +24,44 @@ import { respondError } from '../http/respond-error.js';
 import { verifyToken } from '../modules/auth/token.js';
 
 export async function authenticate(req, res, next) {
-  // TODO (station 5)
-  respondError(res, new Error('TODO: authenticate is not implemented yet.'));
+  const authHeader = req.get('Authorization');
+
+  if (typeof authHeader !== 'string' || authHeader.length === 0) {
+    return respondError(
+      res,
+      new AppError('auth', 'AUTHENTICATION_REQUIRED', 'Authentication is required.')
+    );
+  }
+
+  const match = authHeader.match(/^Bearer\s+(.+)$/);
+  if (!match) {
+    return respondError(
+      res,
+      new AppError('auth', 'AUTHENTICATION_REQUIRED', 'Authentication is required.')
+    );
+  }
+
+  const token = match[1];
+
+  try {
+    const payload = await verifyToken(token);
+    const userId = payload.sub;
+    const role = payload.role;
+
+    if (typeof userId !== 'string' || typeof role !== 'string') {
+      throw new AppError('auth', 'INVALID_TOKEN', 'The token is invalid or expired.');
+    }
+
+    req.auth = { userId, role };
+    return next();
+  } catch (error) {
+    if (error instanceof AppError) {
+      return respondError(res, error);
+    }
+
+    return respondError(
+      res,
+      new AppError('auth', 'INVALID_TOKEN', 'The token is invalid or expired.')
+    );
+  }
 }

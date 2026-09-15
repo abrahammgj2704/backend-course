@@ -1,30 +1,3 @@
-// ============================================================================
-// STARTER NOTE — Stations 6 and 7 evolve this file. It arrives working
-// exactly as in class 04 (with AppError now imported from the shared
-// src/app-error.js). Target changes:
-//
-//   * every exported operation receives the actor first:
-//       listRequests(actor, filters) · getRequest(actor, id)
-//       createRequest(actor, input) · patchRequest(actor, id, body)
-//       getHistory(actor, id)
-//   * reject server-controlled fields explicitly (400 SERVER_CONTROLLED_FIELD):
-//       id, createdBy, createdAt, updatedAt, changedBy — and status on POST;
-//   * createRequest: createdBy = actor.userId (never from the body); the
-//     birth history records the creator as changed_by;
-//   * listRequests: requester -> scope with { createdBy: actor.userId } in
-//     the store call; agent -> everything;
-//   * getRequest/getHistory: a foreign request answers the SAME 404 as a
-//     missing one (do not reveal existence);
-//   * patchRequest: apply the policy BEFORE writing, all-or-nothing (a
-//     mixed body with a forbidden field changes NOTHING -> 403), and pass
-//     actor.userId as changedBy to insertStatusHistory;
-//   * the class 3-4 rules stay: terminal states and transitions keep
-//     answering 409 — for every role.
-//
-// New error categories available: AppError('forbidden', 'FORBIDDEN', ...)
-// -> 403. See src/app-error.js.
-// ============================================================================
-
 import { withTransaction } from '../../database/transaction.js';
 import {
   findAll,
@@ -37,9 +10,18 @@ import {
 import { mapRequestRow, mapHistoryRow } from './request.mapper.js';
 import { STATUSES, isValidStatus, isTerminal, canTransition } from './request-status.js';
 import { AppError } from '../../app-error.js';
+import {
+  canCreateRequest,
+  canEditContent,
+  canChangePriority,
+  canChangeStatus,
+  canViewRequest,
+  canViewHistory
+} from './request.policy.js';
 
 const PRIORITIES = ['low', 'medium', 'high'];
 const UPDATABLE_FIELDS = ['title', 'description', 'priority', 'status'];
+const SERVER_CONTROLLED_FIELDS = ['id', 'createdBy', 'createdAt', 'updatedAt', 'changedBy'];
 
 function assertValidPriority(priority) {
   if (!PRIORITIES.includes(priority)) {
@@ -48,7 +30,7 @@ function assertValidPriority(priority) {
   }
 }
 
-export async function listRequests(filters) {
+export async function listRequests(actor, filters = {}) {
   if (filters.status !== undefined && !isValidStatus(filters.status)) {
     throw new AppError('contract', 'INVALID_FILTER',
       `Unknown status "${filters.status}". Valid values: ${STATUSES.join(', ')}.`);
@@ -57,19 +39,46 @@ export async function listRequests(filters) {
     throw new AppError('contract', 'INVALID_FILTER',
       `Unknown priority "${filters.priority}". Valid values: ${PRIORITIES.join(', ')}.`);
   }
-  const rows = await findAll(filters);
+
+  const storeFilters = { ...filters };
+  if (actor.role === 'requester') {
+    storeFilters.createdBy = actor.userId;
+  }
+
+  const rows = await findAll(storeFilters);
   return rows.map(mapRequestRow);
 }
 
-export async function getRequest(id) {
+export async function getRequest(actor, id) {
   const row = await findById(id);
   if (!row) {
     throw new AppError('resource', 'REQUEST_NOT_FOUND', `Request ${id} does not exist.`);
   }
-  return mapRequestRow(row);
+
+  const request = mapRequestRow(row);
+
+  // Visibilidad previa: un requester no debe saber si existe una solicitud ajena
+  if (!canViewRequest(actor, request)) {
+    throw new AppError('resource', 'REQUEST_NOT_FOUND', `Request ${id} does not exist.`);
+  }
+
+  return request;
 }
 
-export async function createRequest(input) {
+export async function createRequest(actor, input) {
+  if (!canCreateRequest(actor)) {
+    throw new AppError('forbidden', 'FORBIDDEN', 'Agents cannot create requests.');
+  }
+
+  // Rechazar campos controlados por el servidor
+  if (input && typeof input === 'object') {
+    for (const field of [...SERVER_CONTROLLED_FIELDS, 'status']) {
+      if (field in input) {
+        throw new AppError('contract', 'SERVER_CONTROLLED_FIELD', `Field '${field}' is server-controlled.`);
+      }
+    }
+  }
+
   const { title, description, priority } = input ?? {};
 
   if (typeof title !== 'string' || title.trim() === '') {
@@ -77,22 +86,31 @@ export async function createRequest(input) {
   }
   if (priority !== undefined) assertValidPriority(priority);
 
-  // Creation is a unit of work: the request AND its birth history
-  // (NULL -> open) happen together or not at all.
   const row = await withTransaction(async (client) => {
     const created = await insertRequest({
       title: title.trim(),
       description: typeof description === 'string' ? description : null,
-      priority: priority ?? 'medium'
+      priority: priority ?? 'medium',
+      createdBy: actor.userId
     }, client);
-    await insertStatusHistory(created.id, null, created.status, client);
+
+    await insertStatusHistory(created.id, null, created.status, actor.userId, client);
     return created;
   });
 
   return mapRequestRow(row);
 }
 
-export async function patchRequest(id, body) {
+export async function patchRequest(actor, id, body) {
+  // 1. Validar si incluye campos controlados por el servidor
+  if (body && typeof body === 'object') {
+    for (const field of SERVER_CONTROLLED_FIELDS) {
+      if (field in body) {
+        throw new AppError('contract', 'SERVER_CONTROLLED_FIELD', `Field '${field}' is server-controlled.`);
+      }
+    }
+  }
+
   const changes = {};
   for (const field of UPDATABLE_FIELDS) {
     if (body?.[field] !== undefined) changes[field] = body[field];
@@ -102,6 +120,8 @@ export async function patchRequest(id, body) {
     throw new AppError('contract', 'NO_UPDATABLE_FIELDS',
       `The body must include at least one of: ${UPDATABLE_FIELDS.join(', ')}.`);
   }
+
+  // 2. Validaciones básicas de contrato
   if (changes.title !== undefined && (typeof changes.title !== 'string' || changes.title.trim() === '')) {
     throw new AppError('contract', 'TITLE_REQUIRED', 'The title cannot be empty.');
   }
@@ -112,14 +132,36 @@ export async function patchRequest(id, body) {
   }
   if (changes.title !== undefined) changes.title = changes.title.trim();
 
-  // Read, validate against the current state, write and record history —
-  // all with the same client, as one unit of work.
-  const row = await withTransaction(async (client) => {
+  // 3. Obtener el estado actual dentro de la transacción
+  return await withTransaction(async (client) => {
     const current = await findById(id, client);
     if (!current) {
       throw new AppError('resource', 'REQUEST_NOT_FOUND', `Request ${id} does not exist.`);
     }
 
+    const request = mapRequestRow(current);
+
+    // Si un requester intenta acceder a una solicitud ajena -> 404 Not Found
+    if (!canViewRequest(actor, request)) {
+      throw new AppError('resource', 'REQUEST_NOT_FOUND', `Request ${id} does not exist.`);
+    }
+
+    // 4. Evaluar permisos de modificación sobre los campos recibidos (Todo o Nada)
+    const touchesContent = changes.title !== undefined || changes.description !== undefined;
+    const touchesPriority = changes.priority !== undefined;
+    const touchesStatus = changes.status !== undefined;
+
+    if (touchesContent && !canEditContent(actor, request)) {
+      throw new AppError('forbidden', 'FORBIDDEN', 'You cannot edit content on this request.');
+    }
+    if (touchesPriority && !canChangePriority(actor)) {
+      throw new AppError('forbidden', 'FORBIDDEN', 'Only agents can change priority.');
+    }
+    if (touchesStatus && !canChangeStatus(actor)) {
+      throw new AppError('forbidden', 'FORBIDDEN', 'Only agents can change status.');
+    }
+
+    // 5. Reglas de negocio del dominio (Estado terminal y transiciones -> 409 Conflict)
     if (isTerminal(current.status)) {
       throw new AppError('domain', 'REQUEST_IN_TERMINAL_STATUS',
         `Request ${id} is ${current.status} and can no longer be modified.`);
@@ -131,21 +173,17 @@ export async function patchRequest(id, body) {
         `A request cannot move from ${current.status} to ${changes.status}.`);
     }
 
+    // 6. Aplicar la actualización
     const updated = await updateRequest(id, changes, client);
     if (statusChanges) {
-      await insertStatusHistory(id, current.status, changes.status, client);
+      await insertStatusHistory(id, current.status, changes.status, actor.userId, client);
     }
-    return updated;
+    return mapRequestRow(updated);
   });
-
-  return mapRequestRow(row);
 }
 
-export async function getHistory(id) {
-  const request = await findById(id);
-  if (!request) {
-    throw new AppError('resource', 'REQUEST_NOT_FOUND', `Request ${id} does not exist.`);
-  }
-  const rows = await findHistory(id);
+export async function getHistory(actor, id) {
+  const request = await getRequest(actor, id); // Reutiliza getRequest para la verificación de visibilidad (404)
+  const rows = await findHistory(request.id);
   return rows.map(mapHistoryRow);
 }
