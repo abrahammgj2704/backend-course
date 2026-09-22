@@ -27,6 +27,7 @@ import { AppError } from '../../app-error.js';
 
 const PRIORITIES = ['low', 'medium', 'high'];
 const UPDATABLE_FIELDS = ['title', 'description', 'priority', 'status'];
+const MAX_BIGINT = 9223372036854775807n;
 
 // Fields the server controls on requests. Sending them is a contract
 // violation, answered explicitly — never silently ignored.
@@ -51,6 +52,14 @@ function rejectServerControlledFields(body, extra = []) {
   }
 }
 
+function validateRequestId(id) {
+  if (typeof id !== 'string' || !/^[1-9][0-9]*$/.test(id) || BigInt(id) > MAX_BIGINT) {
+    throw new AppError('contract', 'INVALID_REQUEST_ID',
+      'Request id must be a positive integer.');
+  }
+  return id;
+}
+
 export async function listRequests(actor, filters) {
   if (filters.status !== undefined && !isValidStatus(filters.status)) {
     throw new AppError('contract', 'INVALID_FILTER',
@@ -72,6 +81,7 @@ export async function listRequests(actor, filters) {
 }
 
 export async function getRequest(actor, id) {
+  id = validateRequestId(id);
   const row = await findById(id);
   if (!row) throw notFound(id);
 
@@ -118,6 +128,7 @@ export async function createRequest(actor, input) {
 }
 
 export async function patchRequest(actor, id, body) {
+  id = validateRequestId(id);
   rejectServerControlledFields(body);
 
   const changes = {};
@@ -203,6 +214,7 @@ export async function patchRequest(actor, id, body) {
 }
 
 export async function getHistory(actor, id) {
+  id = validateRequestId(id);
   const row = await findById(id);
   if (!row) throw notFound(id);
 

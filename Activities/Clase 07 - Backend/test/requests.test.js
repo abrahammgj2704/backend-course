@@ -36,6 +36,33 @@ test('the owner can read their own request', async () => {
   assert.equal(response.body.id, created.id);
 });
 
+test('rejects malformed request ids before looking up a request', async () => {
+  const user = await createUser({ name: 'invalid-id' });
+  const token = await loginAs(user);
+  const invalidIds = ['not-a-number', '1.5', '0', '-3', '12abc'];
+
+  for (const id of invalidIds) {
+    const response = await request(app)
+      .get(`/requests/${id}`)
+      .set('Authorization', `Bearer ${token}`);
+
+    assert.equal(response.status, 400);
+    assert.equal(response.body.error.code, 'INVALID_REQUEST_ID');
+  }
+});
+
+test('keeps a well-formed missing request id as 404', async () => {
+  const user = await createUser({ name: 'missing-id' });
+  const token = await loginAs(user);
+
+  const response = await request(app)
+    .get('/requests/999999999')
+    .set('Authorization', `Bearer ${token}`);
+
+  assert.equal(response.status, 404);
+  assert.equal(response.body.error.code, 'REQUEST_NOT_FOUND');
+});
+
 test('a requester cannot access another user request', async () => {
   // Prepare
   const owner = await createUser({ name: 'victim' });
