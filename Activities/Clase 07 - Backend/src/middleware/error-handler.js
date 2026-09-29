@@ -34,9 +34,57 @@
 import { AppError } from '../app-error.js';
 import { logger } from '../logging/logger.js';
 
+const CATEGORY_STATUS = {
+  contract: 400,
+  auth: 401,
+  forbidden: 403,
+  resource: 404,
+  domain: 409
+};
+
+const INFRASTRUCTURE_CODES = ['ECONNREFUSED', 'ENOTFOUND', 'ETIMEDOUT', 'EAI_AGAIN', '57P03'];
+
+function sendError(res, status, code, message, requestId) {
+  res.status(status).json({
+    error: { code, message },
+    requestId
+  });
+}
+
 export function errorHandler(error, req, res, next) {
-  // TODO(OPS-703): replace this delegation with the real implementation.
-  // (While it stands, Express's DEFAULT handler answers — look at what it
-  // exposes in the response and ask yourself if support would accept it.)
-  next(error);
+  if (res.headersSent) {
+    return next(error);
+  }
+
+  const requestId = req.requestId ?? 'unknown';
+
+  if (error?.type === 'entity.parse.failed') {
+    res.locals.errorCode = 'INVALID_JSON';
+    return sendError(res, 400, 'INVALID_JSON', 'Invalid JSON body.', requestId);
+  }
+
+  if (error instanceof AppError) {
+    const status = CATEGORY_STATUS[error.category] ?? 500;
+    res.locals.errorCode = error.code;
+    return sendError(res, status, error.code, error.message, requestId);
+  }
+
+  if (INFRASTRUCTURE_CODES.includes(error?.code) || /Connection terminated/i.test(error?.message ?? '')) {
+    res.locals.errorCode = 'DATABASE_UNAVAILABLE';
+    logger.error('database_unavailable', {
+      requestId,
+      code: error?.code ?? 'UNKNOWN',
+      message: error?.message ?? 'database unavailable'
+    });
+    return sendError(res, 503, 'DATABASE_UNAVAILABLE', 'The service cannot access its data store.', requestId);
+  }
+
+  res.locals.errorCode = 'INTERNAL_ERROR';
+  logger.error('unexpected_error', {
+    requestId,
+    name: error?.name ?? 'Error',
+    message: error?.message ?? 'Unknown error',
+    stack: error?.stack ?? ''
+  });
+  return sendError(res, 500, 'INTERNAL_ERROR', 'An unexpected error occurred.', requestId);
 }

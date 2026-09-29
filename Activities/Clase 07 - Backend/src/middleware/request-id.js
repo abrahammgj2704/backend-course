@@ -21,7 +21,15 @@
 //   - What could a client do with an UNLIMITED header echoed into logs?
 import { randomUUID } from 'node:crypto';
 
+const VALID_REQUEST_ID = /^[A-Za-z0-9._-]{1,64}$/;
+
 export function requestId(req, res, next) {
-  // TODO(OPS-703): replace this pass-through with the real implementation.
+  const incoming = req.get('X-Request-Id');
+  const requestId = incoming && VALID_REQUEST_ID.test(incoming)
+    ? incoming
+    : `req_${randomUUID()}`;
+
+  req.requestId = requestId;
+  res.set('X-Request-Id', requestId);
   next();
 }

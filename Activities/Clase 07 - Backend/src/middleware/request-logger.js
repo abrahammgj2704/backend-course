@@ -24,6 +24,30 @@
 import { logger } from '../logging/logger.js';
 
 export function requestLogger(req, res, next) {
-  // TODO(OPS-703): replace this pass-through with the real implementation.
+  const startedAt = process.hrtime.bigint();
+
+  res.on('finish', () => {
+    const durationMs = Number((process.hrtime.bigint() - startedAt) / 1_000_000n);
+    const status = res.statusCode;
+    const fields = {
+      requestId: req.requestId,
+      method: req.method,
+      path: req.originalUrl || req.url,
+      status,
+      durationMs
+    };
+
+    if (req.auth?.userId) {
+      fields.userId = req.auth.userId;
+    }
+    if (res.locals?.errorCode) {
+      fields.errorCode = res.locals.errorCode;
+    }
+
+    const event = status >= 500 ? 'request_failed' : 'request_completed';
+    const level = status >= 500 ? 'error' : 'info';
+    logger[level](event, fields);
+  });
+
   next();
 }

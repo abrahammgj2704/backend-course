@@ -36,6 +36,51 @@ test('the owner can read their own request', async () => {
   assert.equal(response.body.id, created.id);
 });
 
+test('rejects an invalid priority before touching SQL on patch', async () => {
+  const owner = await createUser({ name: 'invalid-priority-owner' });
+  const agent = await createUser({ name: 'invalid-priority-agent', role: 'agent' });
+  const ownerToken = await loginAs(owner);
+  const agentToken = await loginAs(agent);
+  const created = await createRequestAs(ownerToken);
+
+  const response = await request(app)
+    .patch(`/requests/${created.id}`)
+    .set('Authorization', `Bearer ${agentToken}`)
+    .send({ priority: 'critical' });
+
+  assert.equal(response.status, 400);
+  assert.equal(response.body.error.code, 'INVALID_PRIORITY');
+});
+
+test('rejects an invalid priority before touching SQL on create', async () => {
+  const owner = await createUser({ name: 'invalid-priority-creator' });
+  const token = await loginAs(owner);
+
+  const response = await request(app)
+    .post('/requests')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ title: 'bad priority', priority: 'urgent' });
+
+  assert.equal(response.status, 400);
+  assert.equal(response.body.error.code, 'INVALID_PRIORITY');
+});
+
+test('allows a valid priority change after the invalid check', async () => {
+  const owner = await createUser({ name: 'valid-priority-owner' });
+  const agent = await createUser({ name: 'valid-priority-agent', role: 'agent' });
+  const ownerToken = await loginAs(owner);
+  const agentToken = await loginAs(agent);
+  const created = await createRequestAs(ownerToken, { priority: 'low' });
+
+  const response = await request(app)
+    .patch(`/requests/${created.id}`)
+    .set('Authorization', `Bearer ${agentToken}`)
+    .send({ priority: 'high' });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.priority, 'high');
+});
+
 test('rejects malformed request ids before looking up a request', async () => {
   const user = await createUser({ name: 'invalid-id' });
   const token = await loginAs(user);

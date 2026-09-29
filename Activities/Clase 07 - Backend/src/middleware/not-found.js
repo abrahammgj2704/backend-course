@@ -13,6 +13,5 @@
 import { AppError } from '../app-error.js';
 
 export function notFound(req, res, next) {
-  // TODO(OPS-703): replace this pass-through with the real implementation.
-  next();
+  next(new AppError('resource', 'ROUTE_NOT_FOUND', 'The requested route does not exist.'));
 }

@@ -60,14 +60,21 @@ function validateRequestId(id) {
   return id;
 }
 
+function validatePriority(priority) {
+  if (!PRIORITIES.includes(priority)) {
+    throw new AppError('contract', 'INVALID_PRIORITY',
+      'Priority must be low, medium or high.');
+  }
+  return priority;
+}
+
 export async function listRequests(actor, filters) {
   if (filters.status !== undefined && !isValidStatus(filters.status)) {
     throw new AppError('contract', 'INVALID_FILTER',
       `Unknown status "${filters.status}". Valid values: ${STATUSES.join(', ')}.`);
   }
-  if (filters.priority !== undefined && !PRIORITIES.includes(filters.priority)) {
-    throw new AppError('contract', 'INVALID_FILTER',
-      `Unknown priority "${filters.priority}". Valid values: ${PRIORITIES.join(', ')}.`);
+  if (filters.priority !== undefined) {
+    validatePriority(filters.priority);
   }
 
   // Agents see the whole collection; requesters see their own, scoped in
@@ -102,6 +109,9 @@ export async function createRequest(actor, input) {
 
   if (typeof title !== 'string' || title.trim() === '') {
     throw new AppError('contract', 'TITLE_REQUIRED', 'A request needs a non-empty title.');
+  }
+  if (priority !== undefined) {
+    validatePriority(priority);
   }
 
   // Creation is a unit of work: the request AND its birth history
@@ -146,6 +156,9 @@ export async function patchRequest(actor, id, body) {
   if (changes.status !== undefined && !isValidStatus(changes.status)) {
     throw new AppError('contract', 'INVALID_STATUS',
       `Unknown status "${changes.status}". Valid values: ${STATUSES.join(', ')}.`);
+  }
+  if (changes.priority !== undefined) {
+    validatePriority(changes.priority);
   }
   if (changes.title !== undefined) changes.title = changes.title.trim();
 

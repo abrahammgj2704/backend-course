@@ -25,10 +25,23 @@
 import express from 'express';
 import { pool } from '../database/pool.js';
 
-export function createHealthRouter({ checkDatabase } = {}) {
+export function createHealthRouter({ checkDatabase = async () => {
+  await pool.query('SELECT 1');
+} } = {}) {
   const router = express.Router();
 
-  // TODO(OPS-703): add GET /health and GET /ready here.
+  router.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok' });
+  });
+
+  router.get('/ready', async (req, res) => {
+    try {
+      await checkDatabase();
+      res.status(200).json({ status: 'ready', database: 'available' });
+    } catch (error) {
+      res.status(503).json({ status: 'not_ready', database: 'unavailable' });
+    }
+  });
 
   return router;
 }
